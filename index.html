@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>RES Water Fluid Logistics Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -15,6 +15,7 @@
                         resGreenPrimary: '#1F6507',
                         resGreenSecondary: '#8ABD43',
                         resOrangePrimary: '#F59E0B',
+                        resOrangeSecondary: '#FBBF24',
                         resRedPrimary: '#EF4444',
                     }
                 }
@@ -38,7 +39,15 @@
             --res-border: #dcfce7;
         }
 
-        body { font-family: 'Inter', sans-serif; transition: background-color 0.3s ease; }
+        /* Facility Specific Orange Theme */
+        .mode-facility {
+            --res-primary: #F59E0B;
+            --res-secondary: #FBBF24;
+            --res-bg-light: #fffbeb;
+            --res-border: #fef3c7;
+        }
+
+        body { font-family: 'Inter', sans-serif; transition: background-color 0.3s ease; touch-action: manipulation; }
         
         .text-dynamic-primary { color: var(--res-primary); }
         .bg-dynamic-primary { background-color: var(--res-primary); }
@@ -131,7 +140,6 @@
         }
         .facility-card:hover { border-color: var(--res-primary); }
 
-        /* Specific style for excluded chemical tanks */
         .card-excluded {
             background-color: #faf5ff !important;
             border-color: #e9d5ff !important;
@@ -173,7 +181,6 @@
             box-shadow: 0 1px 3px rgba(239, 68, 68, 0.1);
         }
 
-        /* Sticky Header styles for Facility Tab */
         .sticky-pane {
             position: sticky;
             top: 0;
@@ -184,7 +191,6 @@
             border-bottom: 1px solid #e2e8f0;
         }
 
-        /* Circumference Gauge logic */
         .summary-circle-container {
             display: flex;
             flex-direction: column;
@@ -209,7 +215,7 @@
             stroke: var(--res-primary);
             stroke-width: 6;
             stroke-linecap: round;
-            stroke-dasharray: 226.19; /* 2 * PI * 36 */
+            stroke-dasharray: 226.19; 
             stroke-dashoffset: 226.19;
             transition: stroke-dashoffset 0.5s ease-out, stroke 0.3s ease;
         }
@@ -249,10 +255,8 @@
             </button>
         </nav>
 
-        <!-- Trucking Tab Content -->
         <div id="content-trucking" class="space-y-8">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
-                <!-- Inputs -->
                 <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-100 min-h-[740px] flex flex-col">
                     <h2 class="text-xl font-bold mb-6 text-dynamic-primary border-b pb-3 border-dynamic-secondary uppercase tracking-widest text-sm">Payload Settings</h2>
                     <div class="space-y-6 flex-grow overflow-y-auto pr-2">
@@ -307,7 +311,6 @@
                     </div>
                 </div>
 
-                <!-- Results -->
                 <div class="relative overflow-hidden bg-dynamic-primary text-white p-10 md:p-14 rounded-xl shadow-lg flex flex-col justify-between border-b-8 border-dynamic-secondary min-h-[740px]">
                     <div id="state-watermark" class="state-watermark">PA</div>
                     <div class="relative z-10 space-y-12">
@@ -345,9 +348,7 @@
             </div>
         </div>
 
-        <!-- Facility Tab Content -->
         <div id="content-facility" class="hidden space-y-8">
-            <!-- STICKY HEADER PANE -->
             <div class="sticky-pane p-6 rounded-b-xl shadow-sm">
                 <div class="flex flex-col md:flex-row justify-between items-center gap-6">
                     <div class="flex items-center gap-6">
@@ -356,7 +357,6 @@
                             <p class="text-xs text-gray-500 uppercase font-bold tracking-widest">Active Site: <span id="active-site-name" class="text-dynamic-primary">Butler</span></p>
                         </div>
                         
-                        <!-- Facility Overall Circle Gauge -->
                         <div class="summary-circle-container">
                             <svg class="summary-circle-svg" viewBox="0 0 80 80">
                                 <circle class="summary-circle-bg" cx="40" cy="40" r="36"></circle>
@@ -412,10 +412,10 @@
     <script>
         const GAL_PER_BBL = 42;
         let currentFacility = 'Butler';
+        let currentTab = 'trucking';
         const tankState = {};
-        const tankVolumes = {}; // Key storage for calculating totals
+        const tankVolumes = {};
 
-        // Impoundment Lookup Logic (Table Data: 12" steps)
         const impoundmentData = [
             { inch: 0, gal: 367249 }, { inch: 12, gal: 972907 }, { inch: 24, gal: 1587805 },
             { inch: 36, gal: 2225476 }, { inch: 48, gal: 2882476 }, { inch: 60, gal: 3559816 },
@@ -428,8 +428,6 @@
         function getImpoundmentBbl(totalInches) {
             if (totalInches <= 0) return 0;
             if (totalInches >= 180) return 11493110 / GAL_PER_BBL;
-
-            // Find segment
             let lower = impoundmentData[0];
             let upper = impoundmentData[1];
             for (let i = 0; i < impoundmentData.length - 1; i++) {
@@ -439,8 +437,6 @@
                     break;
                 }
             }
-
-            // Linear interpolation for between 12" markers
             const fraction = (totalInches - lower.inch) / (upper.inch - lower.inch);
             const gallons = lower.gal + (fraction * (upper.gal - lower.gal));
             return gallons / GAL_PER_BBL;
@@ -517,7 +513,9 @@
                     { id: 'Reservoir', maxBbl: 2380, maxHt: 15, gpf: 6664.00 },
                     { id: 'Reservoir Reload', maxBbl: 502.7, maxHt: 8.9, gpf: 2372.29 },
                     { id: 'Pond Reload 1', maxBbl: 502.7, maxHt: 8.9, gpf: 2372.29 },
-                    { id: 'Pond Reload 2', maxBbl: 502.7, maxHt: 8.9, gpf: 2372.29 }
+                    { id: 'Pond Reload 2', maxBbl: 502.7, maxHt: 8.9, gpf: 2372.29 },
+                    { id: 'Heavy Brine 1', maxBbl: 502.7, maxHt: 8.9, gpf: 2372.29 },
+                    { id: 'Heavy Brine 2', maxBbl: 502.7, maxHt: 8.9, gpf: 2372.29 }
                 ],
                 impoundment: [
                     { id: 'Main Impoundment', maxBbl: 273645.5, maxHt: 15, isLookup: true, criticalFreeboard: 2 }
@@ -551,20 +549,29 @@
         let activeBrineMode = 'site';
 
         function switchTab(tab) {
+            currentTab = tab;
             document.getElementById('content-trucking').classList.toggle('hidden', tab !== 'trucking');
             document.getElementById('content-facility').classList.toggle('hidden', tab !== 'facility');
             ['tab-trucking', 'tab-facility'].forEach(t => {
                 const el = document.getElementById(t);
                 el.classList.toggle('tab-active', t === `tab-${tab}`);
             });
+            updateContextStyle();
+        }
+
+        function updateContextStyle() {
+            const body = document.getElementById('body-ctx');
+            if (currentTab === 'facility') {
+                body.className = 'bg-gray-50 min-h-screen mode-facility';
+            } else {
+                body.className = activeFluidType === 'brine' ? 'bg-gray-50 min-h-screen mode-brine' : 'bg-gray-50 min-h-screen';
+            }
         }
 
         function setFacility(loc) {
             currentFacility = loc;
             document.getElementById('active-site-name').innerText = loc;
-            // Clear current facility volumes tracking
             for (let key in tankVolumes) delete tankVolumes[key];
-            
             ['Butler', 'Canton', 'Greene', 'Reserved'].forEach(l => {
                 const btn = document.getElementById(`fac-${l.toLowerCase()}`);
                 if(btn) btn.className = l === loc ? 'active' : 'inactive';
@@ -584,12 +591,10 @@
         function renderTanks(loc) {
             const data = facilityData[loc];
             const categories = ['headworks', 'process', 'bulkChem', 'effluent', 'impoundment'];
-            
             categories.forEach(category => {
                 const section = document.getElementById(`section-${category}`);
                 const list = document.getElementById(`${category}-list`);
                 if (!section || !list) return;
-
                 const tanks = data[category] || [];
                 if (tanks.length === 0) {
                     section.classList.add('hidden');
@@ -612,7 +617,6 @@
         function updateCardUI(tankKey, tank) {
             const card = document.getElementById(`card-${tankKey}`);
             const state = tankState[tankKey];
-
             const inputField = state.mode === 'decimal' 
                 ? `<input type="number" step="0.01" placeholder="0.00 ft" 
                         class="w-full bg-gray-50 border border-gray-200 rounded p-1.5 text-xs font-bold text-gray-700 focus:ring-1 focus:ring-dynamic-primary focus:outline-none"
@@ -654,10 +658,8 @@
             const cardEl = document.getElementById(`card-${tankKey}`);
             const warnEl = document.getElementById(`warn-${tankKey}`);
             const state = tankState[tankKey];
-            
             let waterHeight = (state.type === 'water') ? val : Math.max(0, maxHt - val);
             let freeboard = maxHt - waterHeight;
-
             if (critFreeboard !== null && freeboard < critFreeboard) {
                 cardEl.classList.add('tank-critical');
                 if(warnEl) warnEl.classList.remove('hidden');
@@ -665,14 +667,12 @@
                 cardEl.classList.remove('tank-critical');
                 if(warnEl) warnEl.classList.add('hidden');
             }
-
             let bbl = 0;
             if (isLookup) {
                 bbl = getImpoundmentBbl(waterHeight * 12);
             } else {
                 bbl = (waterHeight * gpf) / GAL_PER_BBL;
             }
-            
             tankVolumes[tankKey] = bbl;
             resEl.innerText = bbl.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
             updateFacilitySummary();
@@ -682,25 +682,20 @@
             const data = facilityData[currentFacility];
             let totalMaxBbl = 0;
             let totalCurrentBbl = 0;
-
             Object.entries(data).forEach(([category, tanks]) => {
                 tanks.forEach((tank, idx) => {
                     const key = `${category}-${idx}`;
-                    // Factor in only non-excluded tanks
                     if (!tank.isExcluded) {
                         totalMaxBbl += tank.maxBbl;
                         totalCurrentBbl += (tankVolumes[key] || 0);
                     }
                 });
             });
-
             const pct = totalMaxBbl > 0 ? (totalCurrentBbl / totalMaxBbl) * 100 : 0;
-            const circumference = 226.19; // 2 * PI * 36
+            const circumference = 226.19;
             const offset = circumference - (pct / 100) * circumference;
-
             const fillEl = document.getElementById('facility-gauge-fill');
             fillEl.style.strokeDashoffset = offset;
-            
             document.getElementById('facility-pct-center').innerText = `${Math.round(pct)}%`;
             document.getElementById('facility-bbl-sub').innerText = `${Math.round(totalCurrentBbl).toLocaleString()} BBL`;
         }
@@ -766,7 +761,7 @@
             activeFluidType = type;
             document.getElementById('btn-fresh').className = type === 'fresh' ? 'active' : 'inactive';
             document.getElementById('btn-brine').className = type === 'brine' ? 'active' : 'inactive';
-            document.getElementById('body-ctx').className = type === 'brine' ? 'bg-gray-50 min-h-screen mode-brine' : 'bg-gray-50 min-h-screen';
+            updateContextStyle();
             document.getElementById('brine-options-container').classList.toggle('hidden', type !== 'brine');
             calcTruck();
         }
@@ -794,7 +789,6 @@
             const payloadGal = ppg > 0 ? (payloadLb / ppg) : 0;
             const payloadBbl = payloadGal / GAL_PER_BBL;
             const totalLoadedWeight = tare + payloadLb;
-
             document.getElementById('res-truck-lb').innerText = payloadLb.toLocaleString();
             document.getElementById('res-truck-bbl').innerText = payloadBbl.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
             document.getElementById('res-truck-gal').innerText = Math.floor(payloadGal).toLocaleString();
