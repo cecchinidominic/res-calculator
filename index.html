@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RES Water Fluid Logistics Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        resBluePrimary: '#33A9CB',
+                        resBlueSecondary: '#6BC5E5',
+                        resGreenPrimary: '#1F6507',
+                        resGreenSecondary: '#8ABD43',
+                        resOrangePrimary: '#F59E0B',
+                        resRedPrimary: '#EF4444',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Oswald:wght@700&display=swap');
+        
+        :root {
+            --res-primary: #33A9CB;
+            --res-secondary: #6BC5E5;
+            --res-bg-light: #f0f9ff;
+            --res-border: #bae6fd;
+        }
+
+        .mode-brine {
+            --res-primary: #1F6507;
+            --res-secondary: #8ABD43;
+            --res-bg-light: #f0fdf4;
+            --res-border: #dcfce7;
+        }
+
+        body { font-family: 'Inter', sans-serif; transition: background-color 0.3s ease; }
+        
+        .text-dynamic-primary { color: var(--res-primary); }
+        .bg-dynamic-primary { background-color: var(--res-primary); }
+        .border-dynamic-primary { border-color: var(--res-primary); }
+        .border-dynamic-secondary { border-color: var(--res-secondary); }
+        .bg-dynamic-light { background-color: var(--res-bg-light); }
+        
+        .tab-active { 
+            border-bottom: 3px solid var(--res-primary); 
+            color: var(--res-primary); 
+        }
+
+        .limit-radio-group { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 0.75rem; 
+        }
+        
+        .limit-radio-item { cursor: pointer; position: relative; }
+        .limit-radio-item input { position: absolute; opacity: 0; cursor: pointer; }
+        
+        .limit-radio-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0.75rem;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            height: 100%;
+        }
+
+        .limit-radio-item input:checked + .limit-radio-card {
+            border-color: var(--res-primary);
+            background: var(--res-bg-light);
+            box-shadow: 0 0 0 1px var(--res-primary);
+        }
+
+        .segmented-control {
+            display: flex;
+            background: #f3f4f6;
+            padding: 2px;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+        .segmented-control button {
+            flex: 1;
+            padding: 4px 6px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            border-radius: 4px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .segmented-control button.active {
+            background: white;
+            color: var(--res-primary);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .segmented-control button.inactive { color: #9ca3af; }
+
+        .state-watermark {
+            position: absolute;
+            bottom: -2%;
+            right: 2%;
+            font-family: 'Oswald', sans-serif;
+            font-size: 16rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            opacity: 0.12;
+            line-height: 0.7;
+            pointer-events: none;
+            user-select: none;
+            transition: all 0.3s ease;
+            letter-spacing: -0.07em;
+            transform: scaleY(1.3);
+            transform-origin: bottom right;
+        }
+
+        .res-display-container { width: 100%; height: 120px; display: flex; align-items: baseline; justify-content: flex-start; overflow: hidden; white-space: nowrap; }
+        
+        .facility-card { 
+            position: relative;
+            transition: all 0.2s; 
+            border: 1px solid #f1f5f9;
+            height: 165px; 
+            overflow: hidden;
+        }
+        .facility-card:hover { border-color: var(--res-primary); }
+
+        /* Specific style for excluded chemical tanks */
+        .card-excluded {
+            background-color: #faf5ff !important;
+            border-color: #e9d5ff !important;
+        }
+        .card-excluded .text-dynamic-primary {
+            color: #7c3aed !important;
+        }
+
+        .tank-critical {
+            background-color: #fee2e2 !important; 
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 1px #ef4444 inset;
+        }
+        .tank-critical .text-dynamic-primary {
+            color: #b91c1c !important;
+        }
+        
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .freeboard-alert {
+            position: absolute;
+            bottom: 6px;
+            right: 8px;
+            font-size: 9px;
+            font-weight: 900;
+            color: #ef4444;
+            background: white;
+            padding: 2px 6px;
+            border: 1.5px solid #ef4444;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            pointer-events: none;
+            z-index: 10;
+            box-shadow: 0 1px 3px rgba(239, 68, 68, 0.1);
+        }
+
+        /* Sticky Header styles for Facility Tab */
+        .sticky-pane {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        /* Circumference Gauge logic */
+        .summary-circle-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            width: 80px;
+            height: 80px;
+        }
+        .summary-circle-svg {
+            transform: rotate(-90deg);
+            width: 80px;
+            height: 80px;
+        }
+        .summary-circle-bg {
+            fill: none;
+            stroke: #e2e8f0;
+            stroke-width: 6;
+        }
+        .summary-circle-fill {
+            fill: none;
+            stroke: var(--res-primary);
+            stroke-width: 6;
+            stroke-linecap: round;
+            stroke-dasharray: 226.19; /* 2 * PI * 36 */
+            stroke-dashoffset: 226.19;
+            transition: stroke-dashoffset 0.5s ease-out, stroke 0.3s ease;
+        }
+        .summary-text-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen" id="body-ctx">
+    <input type="hidden" id="truck-tare" value="0">
+
+    <div id="app" class="max-w-7xl mx-auto p-4 md:p-8">
+        <header class="mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div class="text-center md:text-left flex flex-col md:flex-row justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-dynamic-primary tracking-tight transition-colors duration-300">RES Water Fluid Logistics Manager</h1>
+                    <p class="text-gray-400 font-medium text-xs mt-1">Infrastructure & Payload Systems</p>
+                </div>
+            </div>
+        </header>
+
+        <nav class="flex border-b border-gray-200 mb-8 bg-white rounded-t-lg px-6 shadow-sm overflow-x-auto whitespace-nowrap">
+            <button onclick="switchTab('trucking')" id="tab-trucking" class="px-6 py-4 font-semibold text-gray-500 hover:text-dynamic-primary transition-all tab-active tracking-wide text-sm">
+                Trucking Operations
+            </button>
+            <button onclick="switchTab('facility')" id="tab-facility" class="px-6 py-4 font-semibold text-gray-500 hover:text-dynamic-primary transition-all tracking-wide text-sm">
+                Facility Management
+            </button>
+        </nav>
+
+        <!-- Trucking Tab Content -->
+        <div id="content-trucking" class="space-y-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+                <!-- Inputs -->
+                <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-100 min-h-[740px] flex flex-col">
+                    <h2 class="text-xl font-bold mb-6 text-dynamic-primary border-b pb-3 border-dynamic-secondary uppercase tracking-widest text-sm">Payload Settings</h2>
+                    <div class="space-y-6 flex-grow overflow-y-auto pr-2">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Select Truck Asset</label>
+                            <select id="truck-selector" onchange="handleTruckSelect()" class="mt-1 block w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-dynamic-primary focus:bg-white focus:outline-none transition-all">
+                                <option value="0">-- Select a Truck --</option>
+                            </select>
+                            <div class="mt-3 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
+                                Verified Tare: <span id="display-tare" class="text-dynamic-primary">0</span> lb
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-widest">Route Weight Limit</label>
+                            <div id="limit-radio-container" class="limit-radio-group"></div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Fluid Category</label>
+                            <div class="segmented-control">
+                                <button id="btn-fresh" onclick="setFluidType('fresh')" class="active">Freshwater</button>
+                                <button id="btn-brine" onclick="setFluidType('brine')" class="inactive">Brine / Production</button>
+                            </div>
+                        </div>
+                        <div class="min-h-[220px]">
+                            <div id="brine-options-container" class="hidden p-5 bg-dynamic-light rounded-xl space-y-4 border border-dynamic-secondary h-full">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-dynamic-primary mb-2 uppercase tracking-widest">Brine Source Weight</label>
+                                    <div class="segmented-control bg-white/50">
+                                        <button id="btn-site" onclick="setBrineMode('site')" class="active">Production Site</button>
+                                        <button id="btn-manual" onclick="setBrineMode('manual')" class="inactive">Manual Entry</button>
+                                    </div>
+                                </div>
+                                <div id="site-weight-input" class="h-20">
+                                    <select id="production-site-selector" onchange="calcTruck()" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-dynamic-primary focus:outline-none bg-white text-sm shadow-sm">
+                                        <option value="9.4">Generic Production (9.40)</option>
+                                        <option value="9.13">Apollo (9.13)</option>
+                                        <option value="9.3">Athena (9.30)</option>
+                                        <option value="9.13">Basara (9.13)</option>
+                                        <option value="9.3">Captain USA (9.30)</option>
+                                        <option value="9.4">Cernuska (9.40)</option>
+                                        <option value="9.5">Great Tiger (9.50)</option>
+                                        <option value="9.6">Mono (9.60)</option>
+                                        <option value="9.1">Oliver East (9.10)</option>
+                                        <option value="9.1">Plutus (9.10)</option>
+                                    </select>
+                                </div>
+                                <div id="manual-weight-input" class="hidden h-20">
+                                    <input type="number" id="truck-ppg-manual" value="9.40" step="0.01" oninput="calcTruck()" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-dynamic-primary focus:outline-none text-sm shadow-sm">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div class="relative overflow-hidden bg-dynamic-primary text-white p-10 md:p-14 rounded-xl shadow-lg flex flex-col justify-between border-b-8 border-dynamic-secondary min-h-[740px]">
+                    <div id="state-watermark" class="state-watermark">PA</div>
+                    <div class="relative z-10 space-y-12">
+                        <div>
+                            <h2 class="text-xs font-bold opacity-60 mb-2 tracking-[0.3em] uppercase border-l-2 border-white/30 pl-4">Safe Working Payload</h2>
+                            <div class="res-display-container">
+                                <span id="res-truck-lb" class="font-black tracking-tighter leading-none transition-all duration-300">0</span>
+                                <span id="res-truck-lb-unit" class="text-xl md:text-2xl font-light opacity-60 uppercase tracking-widest ml-3">lbs</span>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div id="volume-card" class="bg-white/10 p-8 rounded-2xl border border-white/20 backdrop-blur-sm">
+                                <div class="flex justify-between items-start mb-6">
+                                    <p class="text-[10px] opacity-60 uppercase tracking-[0.4em] font-bold">Volume Conversion</p>
+                                    <div id="fluid-type-badge" class="px-3 py-1 bg-white/10 border border-white/20 rounded-full text-[8px] uppercase font-bold tracking-[0.2em] backdrop-blur-md whitespace-nowrap">
+                                        FRESHWATER (8.34 lb/gal)
+                                    </div>
+                                </div>
+                                <div class="res-bbl-container border-b border-white/10 pb-4 mb-4" id="bbl-scaler-box">
+                                    <span id="res-truck-bbl" class="text-5xl font-black leading-none inline-block">0.00</span>
+                                    <span id="res-truck-bbl-unit" class="text-2xl opacity-40 font-bold italic ml-3">BBL</span>
+                                </div>
+                                <div class="res-gal-container border-b border-white/10 pb-4 mb-4" id="gal-scaler-box">
+                                    <span id="res-truck-gal" class="text-4xl font-bold font-mono tracking-tight">0</span>
+                                    <span id="res-truck-gal-unit" class="text-lg opacity-40 font-bold uppercase tracking-widest ml-3">Gallons</span>
+                                </div>
+                                <div class="res-total-container" id="total-scaler-box">
+                                    <span id="res-truck-total" class="text-xl font-bold tracking-tight opacity-90">0</span>
+                                    <span id="res-truck-total-unit" class="text-[10px] opacity-40 font-bold uppercase tracking-widest ml-3">Total Loaded Weight (GVW)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Facility Tab Content -->
+        <div id="content-facility" class="hidden space-y-8">
+            <!-- STICKY HEADER PANE -->
+            <div class="sticky-pane p-6 rounded-b-xl shadow-sm">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div class="flex items-center gap-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800">Facility Infrastructure Dashboard</h2>
+                            <p class="text-xs text-gray-500 uppercase font-bold tracking-widest">Active Site: <span id="active-site-name" class="text-dynamic-primary">Butler</span></p>
+                        </div>
+                        
+                        <!-- Facility Overall Circle Gauge -->
+                        <div class="summary-circle-container">
+                            <svg class="summary-circle-svg" viewBox="0 0 80 80">
+                                <circle class="summary-circle-bg" cx="40" cy="40" r="36"></circle>
+                                <circle id="facility-gauge-fill" class="summary-circle-fill" cx="40" cy="40" r="36"></circle>
+                            </svg>
+                            <div class="summary-text-container">
+                                <span id="facility-pct-center" class="text-sm font-black text-gray-800 leading-none">0%</span>
+                                <span id="facility-bbl-sub" class="text-[8px] font-bold text-gray-500 mt-1 uppercase">0 BBL</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="w-full md:w-auto">
+                        <div class="segmented-control w-full">
+                            <button id="fac-butler" onclick="setFacility('Butler')" class="active">Butler</button>
+                            <button id="fac-canton" onclick="setFacility('Canton')" class="inactive">Canton</button>
+                            <button id="fac-greene" onclick="setFacility('Greene')" class="inactive">Greene</button>
+                            <button id="fac-reserved" onclick="setFacility('Reserved')" class="inactive">Reserved</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="facility-sections" class="space-y-12">
+                <div id="section-headworks" class="space-y-4">
+                    <h3 class="text-[11px] font-black uppercase tracking-[0.3em] text-gray-500 border-b-2 border-dynamic-primary/20 pb-2">HEADWORKS</h3>
+                    <div id="headworks-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+                </div>
+
+                <div id="section-process" class="space-y-4">
+                    <h3 class="text-[11px] font-black uppercase tracking-[0.3em] text-gray-500 border-b-2 border-dynamic-primary/20 pb-2">PROCESS TANKS</h3>
+                    <div id="process-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+                </div>
+                
+                <div id="section-bulkChem" class="hidden space-y-4">
+                    <h3 class="text-[11px] font-black uppercase tracking-[0.3em] text-gray-500 border-b-2 border-dynamic-primary/20 pb-2">BULK CHEMICAL</h3>
+                    <div id="bulkChem-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+                </div>
+
+                <div id="section-effluent" class="space-y-4">
+                    <h3 class="text-[11px] font-black uppercase tracking-[0.3em] text-gray-500 border-b-2 border-dynamic-primary/20 pb-2">EFFLUENT</h3>
+                    <div id="effluent-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+                </div>
+
+                <div id="section-impoundment" class="hidden space-y-4">
+                    <h3 class="text-[11px] font-black uppercase tracking-[0.3em] text-gray-500 border-b-2 border-dynamic-primary/20 pb-2">IMPOUNDMENT</h3>
+                    <div id="impoundment-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const GAL_PER_BBL = 42;
+        let currentFacility = 'Butler';
+        const tankState = {};
+        const tankVolumes = {}; // Key storage for calculating totals
+
+        // Impoundment Lookup Logic (Table Data: 12" steps)
+        const impoundmentData = [
+            { inch: 0, gal: 367249 }, { inch: 12, gal: 972907 }, { inch: 24, gal: 1587805 },
+            { inch: 36, gal: 2225476 }, { inch: 48, gal: 2882476 }, { inch: 60, gal: 3559816 },
+            { inch: 72, gal: 4257410 }, { inch: 84, gal: 4975523 }, { inch: 96, gal: 5714320 },
+            { inch: 108, gal: 6474019 }, { inch: 120, gal: 7254895 }, { inch: 132, gal: 8058283 },
+            { inch: 144, gal: 8845974 }, { inch: 156, gal: 9729418 }, { inch: 168, gal: 10600455 },
+            { inch: 180, gal: 11493110 }
+        ];
+
+        function getImpoundmentBbl(totalInches) {
+            if (totalInches <= 0) return 0;
+            if (totalInches >= 180) return 11493110 / GAL_PER_BBL;
+
+            // Find segment
+            let lower = impoundmentData[0];
+            let upper = impoundmentData[1];
+            for (let i = 0; i < impoundmentData.length - 1; i++) {
+                if (totalInches >= impoundmentData[i].inch && totalInches <= impoundmentData[i+1].inch) {
+                    lower = impoundmentData[i];
+                    upper = impoundmentData[i+1];
+                    break;
+                }
+            }
+
+            // Linear interpolation for between 12" markers
+            const fraction = (totalInches - lower.inch) / (upper.inch - lower.inch);
+            const gallons = lower.gal + (fraction * (upper.gal - lower.gal));
+            return gallons / GAL_PER_BBL;
+        }
+
+        const facilityData = {
+            Butler: {
+                headworks: [
+                    { id: 'Offload 1', maxBbl: 500, maxHt: 8.8, gpf: 2386.36 },
+                    { id: 'Offload 2', maxBbl: 500, maxHt: 8.8, gpf: 2386.36 },
+                    { id: 'Offload 3', maxBbl: 2500, maxHt: 24.5, gpf: 4285.71 }
+                ],
+                process: [
+                    { id: 'Reaction Tank', maxBbl: 244, maxHt: 12, gpf: 854.00 },
+                    { id: 'Floc Tank', maxBbl: 244, maxHt: 12, gpf: 854.00 },
+                    { id: 'Clarifier A', maxBbl: 100, maxHt: 9.7, gpf: 432.99 },
+                    { id: 'Clarifier B', maxBbl: 100, maxHt: 9.7, gpf: 432.99 },
+                    { id: 'Clarifier C', maxBbl: 100, maxHt: 9.7, gpf: 432.99 }
+                ],
+                effluent: [
+                    { id: 'Reload 1', maxBbl: 500, maxHt: 8.8, gpf: 2386.36 },
+                    { id: 'Reload 2', maxBbl: 500, maxHt: 8.8, gpf: 2386.36 },
+                    { id: 'Reload 3', maxBbl: 500, maxHt: 8.8, gpf: 2386.36 },
+                    { id: 'Reload 4', maxBbl: 500, maxHt: 8.8, gpf: 2386.36 },
+                    { id: 'Reload 5', maxBbl: 500, maxHt: 8.8, gpf: 2386.36 },
+                    { id: 'Reservoir', maxBbl: 51591, maxHt: 25.4, gpf: 85307.95, criticalFreeboard: 2 }
+                ]
+            },
+            Canton: {
+                headworks: [{ id: 'South Frac Tank', maxBbl: 500, maxHt: 9.5, gpf: 2210.53 }],
+                process: [
+                    { id: 'South AST', maxBbl: 107142.5, maxHt: 23, gpf: 195651.52, criticalFreeboard: 2 },
+                    { id: 'North AST', maxBbl: 107142.5, maxHt: 23, gpf: 195651.52, criticalFreeboard: 2 }
+                ],
+                effluent: [{ id: 'North Frac Tank', maxBbl: 500, maxHt: 9.5, gpf: 2210.53 }]
+            },
+            Greene: {
+                headworks: [
+                    { id: 'Offload 123', maxBbl: 460, maxHt: 7, gpf: 2760.00 },
+                    { id: 'Offload 456', maxBbl: 460, maxHt: 7, gpf: 2760.00 }
+                ],
+                process: [
+                    { id: 'T-1001', maxBbl: 72000, maxHt: 39, gpf: 77538.46, criticalFreeboard: 2 },
+                    { id: 'T-1002', maxBbl: 72000, maxHt: 39, gpf: 77538.46, criticalFreeboard: 2 }
+                ],
+                effluent: [
+                    { id: 'Reload 123', maxBbl: 460, maxHt: 7, gpf: 2760.00 },
+                    { id: 'Reload 456', maxBbl: 460, maxHt: 7, gpf: 2760.00 }
+                ]
+            },
+            Reserved: {
+                headworks: [
+                    { id: 'Offload 1', maxBbl: 239, maxHt: 8, gpf: 1254.75 },
+                    { id: 'Offload 2', maxBbl: 239, maxHt: 8, gpf: 1254.75 },
+                    { id: 'Offload 3', maxBbl: 239, maxHt: 8, gpf: 1254.75 },
+                    { id: 'Box 12', maxBbl: 133, maxHt: 5.25, gpf: 1064.00 },
+                    { id: 'OBM Frac Tank', maxBbl: 502.7, maxHt: 8.9, gpf: 2372.29 },
+                    { id: 'Red OBM Tank', maxBbl: 133, maxHt: 5.25, gpf: 1064.00 },
+                    { id: 'Black OBM Tank', maxBbl: 204, maxHt: 7, gpf: 1224.00 }
+                ],
+                process: [
+                    { id: 'Reaction Tank 1', maxBbl: 166.7, maxHt: 16, gpf: 437.59 },
+                    { id: 'Reaction Tank 2', maxBbl: 166.7, maxHt: 16, gpf: 437.59 },
+                    { id: 'Reaction Tank 3', maxBbl: 166.7, maxHt: 16, gpf: 437.59 },
+                    { id: 'Clarifier A', maxBbl: 2500, maxHt: 15, gpf: 7000.00 },
+                    { id: 'Clarifier B', maxBbl: 2500, maxHt: 15, gpf: 7000.00 },
+                    { id: 'Thickener', maxBbl: 166.7, maxHt: 15, gpf: 437.59 }
+                ],
+                bulkChem: [
+                    { id: 'PAC', maxBbl: 166.4, maxHt: 12, gpf: 582.40, isExcluded: true },
+                    { id: 'Caustic', maxBbl: 166.4, maxHt: 12, gpf: 582.40, isExcluded: true }
+                ],
+                effluent: [
+                    { id: 'Reservoir', maxBbl: 2380, maxHt: 15, gpf: 6664.00 },
+                    { id: 'Reservoir Reload', maxBbl: 502.7, maxHt: 8.9, gpf: 2372.29 },
+                    { id: 'Pond Reload 1', maxBbl: 502.7, maxHt: 8.9, gpf: 2372.29 },
+                    { id: 'Pond Reload 2', maxBbl: 502.7, maxHt: 8.9, gpf: 2372.29 }
+                ],
+                impoundment: [
+                    { id: 'Main Impoundment', maxBbl: 273645.5, maxHt: 15, isLookup: true, criticalFreeboard: 2 }
+                ]
+            }
+        };
+
+        const truckInventory = [
+            { id: "RWT-1", tare: 34280 }, { id: "RWT-3", tare: 34720 }, { id: "RWT-4", tare: 33460 },
+            { id: "RWT-6", tare: 30360 }, { id: "RWT-8", tare: 34080 }, { id: "RWT-9", tare: 33900 },
+            { id: "RWT-10", tare: 34280 }, { id: "RWT-17", tare: 33920 }, { id: "RWT-19", tare: 33820 },
+            { id: "RWT-21", tare: 34340 }, { id: "RWT-22", tare: 33440 }, { id: "RWT-23", tare: 32960 },
+            { id: "RWT-24", tare: 33240 }, { id: "RWT-25", tare: 33080 }, { id: "RWT-27", tare: 32680 },
+            { id: "RWT-28", tare: 32700 }, { id: "RWT-29", tare: 33100 }, { id: "RWT-30", tare: 35100 },
+            { id: "RWT-31", tare: 35520 }, { id: "RWT-32", tare: 35440 }, { id: "RWT-33", tare: 35200 },
+            { id: "RWT-34", tare: 32980 }, { id: "RWT-35", tare: 32300 }, { id: "RWT-36", tare: 36020 },
+            { id: "RWT-37", tare: 34520 }, { id: "RWT-38", tare: 31780 }, { id: "RWT-39", tare: 31360 },
+            { id: "RWT-42", tare: 31240 }, { id: "RWT-43", tare: 33480 }
+        ];
+
+        const ROUTES = [
+            { id: 'PA', name: 'PA Standard', limit: 73280, code: 'PA' },
+            { id: 'OH3', name: 'OH Tri-axle', limit: 57500, code: 'OH' },
+            { id: 'OH4', name: 'OH Quad-axle', limit: 65500, code: 'OH' }
+        ];
+
+        const ohTriAxleTrucks = ["RWT-1", "RWT-3", "RWT-4", "RWT-10", "RWT-23", "RWT-27", "RWT-28", "RWT-35", "RWT-38", "RWT-39", "RWT-42"];
+        const ohQuadAxleTrucks = ["RWT-8", "RWT-9", "RWT-17", "RWT-19", "RWT-22", "RWT-24", "RWT-25", "RWT-29", "RWT-30", "RWT-31", "RWT-32", "RWT-33", "RWT-36", "RWT-37", "RWT-43"];
+
+        let activeFluidType = 'fresh';
+        let activeBrineMode = 'site';
+
+        function switchTab(tab) {
+            document.getElementById('content-trucking').classList.toggle('hidden', tab !== 'trucking');
+            document.getElementById('content-facility').classList.toggle('hidden', tab !== 'facility');
+            ['tab-trucking', 'tab-facility'].forEach(t => {
+                const el = document.getElementById(t);
+                el.classList.toggle('tab-active', t === `tab-${tab}`);
+            });
+        }
+
+        function setFacility(loc) {
+            currentFacility = loc;
+            document.getElementById('active-site-name').innerText = loc;
+            // Clear current facility volumes tracking
+            for (let key in tankVolumes) delete tankVolumes[key];
+            
+            ['Butler', 'Canton', 'Greene', 'Reserved'].forEach(l => {
+                const btn = document.getElementById(`fac-${l.toLowerCase()}`);
+                if(btn) btn.className = l === loc ? 'active' : 'inactive';
+            });
+            renderTanks(loc);
+            updateFacilitySummary();
+        }
+
+        function setTankControl(tankKey, controlKey, value) {
+            if (!tankState[tankKey]) tankState[tankKey] = { mode: 'decimal', type: 'water' };
+            tankState[tankKey][controlKey] = value;
+            const [listId, idx] = tankKey.split('-');
+            const tank = facilityData[currentFacility][listId][idx];
+            updateCardUI(tankKey, tank);
+        }
+
+        function renderTanks(loc) {
+            const data = facilityData[loc];
+            const categories = ['headworks', 'process', 'bulkChem', 'effluent', 'impoundment'];
+            
+            categories.forEach(category => {
+                const section = document.getElementById(`section-${category}`);
+                const list = document.getElementById(`${category}-list`);
+                if (!section || !list) return;
+
+                const tanks = data[category] || [];
+                if (tanks.length === 0) {
+                    section.classList.add('hidden');
+                } else {
+                    section.classList.remove('hidden');
+                    list.innerHTML = '';
+                    tanks.forEach((tank, idx) => {
+                        const tankKey = `${category}-${idx}`;
+                        if (!tankState[tankKey]) tankState[tankKey] = { mode: 'decimal', type: 'water' };
+                        const card = document.createElement('div');
+                        card.id = `card-${tankKey}`;
+                        card.className = "facility-card bg-white p-4 rounded-xl border shadow-sm flex flex-col gap-3 " + (tank.isExcluded ? 'card-excluded' : '');
+                        list.appendChild(card);
+                        updateCardUI(tankKey, tank);
+                    });
+                }
+            });
+        }
+
+        function updateCardUI(tankKey, tank) {
+            const card = document.getElementById(`card-${tankKey}`);
+            const state = tankState[tankKey];
+
+            const inputField = state.mode === 'decimal' 
+                ? `<input type="number" step="0.01" placeholder="0.00 ft" 
+                        class="w-full bg-gray-50 border border-gray-200 rounded p-1.5 text-xs font-bold text-gray-700 focus:ring-1 focus:ring-dynamic-primary focus:outline-none"
+                        oninput="calculateTankVolume('${tankKey}', this.value, ${tank.maxHt}, ${tank.gpf || 'null'}, ${tank.criticalFreeboard || 'null'}, ${tank.isLookup || 'false'})">`
+                : `<div class="flex gap-1.5">
+                    <input type="number" placeholder="ft" class="w-1/2 bg-gray-50 border border-gray-200 rounded p-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-dynamic-primary" oninput="calculateTankVolumeFtin('${tankKey}', ${tank.maxHt}, ${tank.gpf || 'null'}, ${tank.criticalFreeboard || 'null'}, ${tank.isLookup || 'false'})" id="ft-${tankKey}">
+                    <input type="number" placeholder="in" class="w-1/2 bg-gray-50 border border-gray-200 rounded p-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-dynamic-primary" oninput="calculateTankVolumeFtin('${tankKey}', ${tank.maxHt}, ${tank.gpf || 'null'}, ${tank.criticalFreeboard || 'null'}, ${tank.isLookup || 'false'})" id="in-${tankKey}">
+                   </div>`;
+
+            card.innerHTML = `
+                <div class="flex justify-between items-start gap-2">
+                    <div class="overflow-hidden">
+                        <span class="block text-[9px] font-black text-gray-400 uppercase tracking-widest truncate">${tank.id}</span>
+                        <span class="text-[9px] text-gray-500 font-medium">Cap: ${tank.maxBbl.toLocaleString()} BBL · Ht: ${tank.maxHt}ft</span>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <span id="res-${tankKey}" class="text-lg font-black text-dynamic-primary leading-none">0.00</span>
+                        <span class="block text-[7px] text-gray-400 font-black uppercase tracking-tighter">BBL In Tank</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-1.5">
+                    <div class="segmented-control">
+                        <button onclick="setTankControl('${tankKey}', 'mode', 'decimal')" class="${state.mode === 'decimal' ? 'active' : 'inactive'}">Dec</button>
+                        <button onclick="setTankControl('${tankKey}', 'mode', 'ftin')" class="${state.mode === 'ftin' ? 'active' : 'inactive'}">Ft/In</button>
+                    </div>
+                    <div class="segmented-control">
+                        <button onclick="setTankControl('${tankKey}', 'type', 'water')" class="${state.type === 'water' ? 'active' : 'inactive'}">Fluid</button>
+                        <button onclick="setTankControl('${tankKey}', 'type', 'air')" class="${state.type === 'air' ? 'active' : 'inactive'}">Air</button>
+                    </div>
+                </div>
+                <div class="space-y-1">${inputField}</div>
+                <div id="warn-${tankKey}" class="hidden freeboard-alert">CHECK FREEBOARD</div>
+            `;
+        }
+
+        function calculateTankVolume(tankKey, value, maxHt, gpf, critFreeboard, isLookup) {
+            const val = parseFloat(value) || 0;
+            const resEl = document.getElementById(`res-${tankKey}`);
+            const cardEl = document.getElementById(`card-${tankKey}`);
+            const warnEl = document.getElementById(`warn-${tankKey}`);
+            const state = tankState[tankKey];
+            
+            let waterHeight = (state.type === 'water') ? val : Math.max(0, maxHt - val);
+            let freeboard = maxHt - waterHeight;
+
+            if (critFreeboard !== null && freeboard < critFreeboard) {
+                cardEl.classList.add('tank-critical');
+                if(warnEl) warnEl.classList.remove('hidden');
+            } else {
+                cardEl.classList.remove('tank-critical');
+                if(warnEl) warnEl.classList.add('hidden');
+            }
+
+            let bbl = 0;
+            if (isLookup) {
+                bbl = getImpoundmentBbl(waterHeight * 12);
+            } else {
+                bbl = (waterHeight * gpf) / GAL_PER_BBL;
+            }
+            
+            tankVolumes[tankKey] = bbl;
+            resEl.innerText = bbl.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            updateFacilitySummary();
+        }
+
+        function updateFacilitySummary() {
+            const data = facilityData[currentFacility];
+            let totalMaxBbl = 0;
+            let totalCurrentBbl = 0;
+
+            Object.entries(data).forEach(([category, tanks]) => {
+                tanks.forEach((tank, idx) => {
+                    const key = `${category}-${idx}`;
+                    // Factor in only non-excluded tanks
+                    if (!tank.isExcluded) {
+                        totalMaxBbl += tank.maxBbl;
+                        totalCurrentBbl += (tankVolumes[key] || 0);
+                    }
+                });
+            });
+
+            const pct = totalMaxBbl > 0 ? (totalCurrentBbl / totalMaxBbl) * 100 : 0;
+            const circumference = 226.19; // 2 * PI * 36
+            const offset = circumference - (pct / 100) * circumference;
+
+            const fillEl = document.getElementById('facility-gauge-fill');
+            fillEl.style.strokeDashoffset = offset;
+            
+            document.getElementById('facility-pct-center').innerText = `${Math.round(pct)}%`;
+            document.getElementById('facility-bbl-sub').innerText = `${Math.round(totalCurrentBbl).toLocaleString()} BBL`;
+        }
+
+        function calculateTankVolumeFtin(tankKey, maxHt, gpf, critFreeboard, isLookup) {
+            const ft = parseFloat(document.getElementById(`ft-${tankKey}`).value) || 0;
+            const inch = parseFloat(document.getElementById(`in-${tankKey}`).value) || 0;
+            const decimalHt = ft + (inch / 12);
+            calculateTankVolume(tankKey, decimalHt, maxHt, gpf, critFreeboard, isLookup);
+        }
+
+        function populateTrucks() {
+            const selector = document.getElementById('truck-selector');
+            truckInventory.forEach(truck => {
+                const opt = document.createElement('option');
+                opt.value = truck.id; opt.innerText = truck.id;
+                selector.appendChild(opt);
+            });
+        }
+
+        function handleTruckSelect() {
+            const selector = document.getElementById('truck-selector');
+            const truck = truckInventory.find(t => t.id === selector.value);
+            const tare = truck ? truck.tare : 0;
+            document.getElementById('truck-tare').value = tare;
+            document.getElementById('display-tare').innerText = tare.toLocaleString();
+            updateLimitRadios(selector.value);
+        }
+
+        function updateLimitRadios(truckId) {
+            const container = document.getElementById('limit-radio-container');
+            const existingSelected = document.querySelector('input[name="route-limit"]:checked')?.value;
+            container.innerHTML = '';
+            const validRoutes = ROUTES.filter(route => {
+                if (route.id === 'PA') return true;
+                if (route.id === 'OH3') return ohTriAxleTrucks.includes(truckId);
+                if (route.id === 'OH4') return ohQuadAxleTrucks.includes(truckId);
+                return true;
+            });
+            validRoutes.forEach((route, index) => {
+                const isChecked = existingSelected ? (route.limit.toString() === existingSelected) : (index === 0);
+                const wrapper = document.createElement('label');
+                wrapper.className = "limit-radio-item";
+                wrapper.innerHTML = `
+                    <input type="radio" name="route-limit" value="${route.limit}" data-code="${route.code}" ${isChecked ? 'checked' : ''} onchange="handleLimitChange()">
+                    <div class="limit-radio-card">
+                        <span class="block text-[10px] font-bold text-gray-800 leading-tight">${route.name}</span>
+                        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mt-1">${route.limit.toLocaleString()} lb</span>
+                    </div>
+                `;
+                container.appendChild(wrapper);
+            });
+            handleLimitChange();
+        }
+
+        function handleLimitChange() {
+            const selected = document.querySelector('input[name="route-limit"]:checked');
+            if (selected) { document.getElementById('state-watermark').innerText = selected.getAttribute('data-code'); }
+            calcTruck();
+        }
+
+        function setFluidType(type) {
+            activeFluidType = type;
+            document.getElementById('btn-fresh').className = type === 'fresh' ? 'active' : 'inactive';
+            document.getElementById('btn-brine').className = type === 'brine' ? 'active' : 'inactive';
+            document.getElementById('body-ctx').className = type === 'brine' ? 'bg-gray-50 min-h-screen mode-brine' : 'bg-gray-50 min-h-screen';
+            document.getElementById('brine-options-container').classList.toggle('hidden', type !== 'brine');
+            calcTruck();
+        }
+
+        function setBrineMode(mode) {
+            activeBrineMode = mode;
+            document.getElementById('btn-manual').className = mode === 'manual' ? 'active' : 'inactive';
+            document.getElementById('btn-site').className = mode === 'site' ? 'active' : 'inactive';
+            document.getElementById('manual-weight-input').classList.toggle('hidden', mode !== 'manual');
+            document.getElementById('site-weight-input').classList.toggle('hidden', mode !== 'site');
+            calcTruck();
+        }
+
+        function calcTruck() {
+            const selectedLimitEl = document.querySelector('input[name="route-limit"]:checked');
+            const limit = selectedLimitEl ? parseInt(selectedLimitEl.value) : 0;
+            const tare = parseInt(document.getElementById('truck-tare').value) || 0;
+            let ppg = 8.34;
+            if (activeFluidType === 'brine') {
+                ppg = activeBrineMode === 'manual' ? 
+                    parseFloat(document.getElementById('truck-ppg-manual').value) || 0 : 
+                    parseFloat(document.getElementById('production-site-selector').value) || 0;
+            }
+            const payloadLb = Math.max(0, limit - tare);
+            const payloadGal = ppg > 0 ? (payloadLb / ppg) : 0;
+            const payloadBbl = payloadGal / GAL_PER_BBL;
+            const totalLoadedWeight = tare + payloadLb;
+
+            document.getElementById('res-truck-lb').innerText = payloadLb.toLocaleString();
+            document.getElementById('res-truck-bbl').innerText = payloadBbl.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('res-truck-gal').innerText = Math.floor(payloadGal).toLocaleString();
+            document.getElementById('res-truck-total').innerText = totalLoadedWeight.toLocaleString();
+            document.getElementById('fluid-type-badge').innerText = `${activeFluidType === 'fresh' ? 'FRESHWATER' : 'BRINE'} (${ppg.toFixed(2)} lb/gal)`;
+        }
+
+        window.onload = () => {
+            populateTrucks();
+            updateLimitRadios('0');
+            setFacility('Butler');
+        };
+    </script>
+</body>
+</html>
