@@ -241,7 +241,7 @@
             <div class="text-center md:text-left flex flex-col md:flex-row justify-between items-center">
                 <div>
                     <h1 class="text-2xl font-bold text-dynamic-primary tracking-tight transition-colors duration-300">RES Water Fluid Logistics Manager</h1>
-                    <p class="text-gray-400 font-medium text-xs mt-1">Infrastructure & Payload Systems</p>
+                    <p class="text-gray-400 font-medium text-xs mt-1">Payload & Volume Systems</p>
                 </div>
             </div>
         </header>
@@ -301,6 +301,7 @@
                                         <option value="9.6">Mono (9.60)</option>
                                         <option value="9.1">Oliver East (9.10)</option>
                                         <option value="9.1">Plutus (9.10)</option>
+                                        <option value="9.1">Sarah (9.10)</option>
                                     </select>
                                 </div>
                                 <div id="manual-weight-input" class="hidden h-20">
@@ -353,7 +354,7 @@
                 <div class="flex flex-col md:flex-row justify-between items-center gap-6">
                     <div class="flex items-center gap-6">
                         <div>
-                            <h2 class="text-xl font-bold text-gray-800">Facility Infrastructure Dashboard</h2>
+                            <h2 class="text-xl font-bold text-gray-800">Facility Volume Dashboard</h2>
                             <p class="text-xs text-gray-500 uppercase font-bold tracking-widest">Active Site: <span id="active-site-name" class="text-dynamic-primary">Butler</span></p>
                         </div>
                         
@@ -384,6 +385,11 @@
                 <div id="section-headworks" class="space-y-4">
                     <h3 class="text-[11px] font-black uppercase tracking-[0.3em] text-gray-500 border-b-2 border-dynamic-primary/20 pb-2">HEADWORKS</h3>
                     <div id="headworks-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+                </div>
+
+                <div id="section-solids" class="space-y-4">
+                    <h3 class="text-[11px] font-black uppercase tracking-[0.3em] text-gray-500 border-b-2 border-dynamic-primary/20 pb-2">SOLIDS HANDLING</h3>
+                    <div id="solids-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
                 </div>
 
                 <div id="section-process" class="space-y-4">
@@ -447,7 +453,8 @@
                 headworks: [
                     { id: 'Offload 1', maxBbl: 500, maxHt: 8.8, gpf: 2386.36 },
                     { id: 'Offload 2', maxBbl: 500, maxHt: 8.8, gpf: 2386.36 },
-                    { id: 'Offload 3', maxBbl: 2500, maxHt: 24.5, gpf: 4285.71 }
+                    { id: 'EQ A', maxBbl: 1250, maxHt: 24.5, gpf: 2142.86, criticalFreeboard: 2 },
+                    { id: 'EQ B', maxBbl: 1250, maxHt: 24.5, gpf: 2142.86, criticalFreeboard: 2 }
                 ],
                 process: [
                     { id: 'Reaction Tank', maxBbl: 244, maxHt: 12, gpf: 854.00 },
@@ -492,11 +499,15 @@
                     { id: 'Offload 1', maxBbl: 239, maxHt: 8, gpf: 1254.75 },
                     { id: 'Offload 2', maxBbl: 239, maxHt: 8, gpf: 1254.75 },
                     { id: 'Offload 3', maxBbl: 239, maxHt: 8, gpf: 1254.75 },
+                    { id: 'EQ A', maxBbl: 2380, maxHt: 15.5, gpf: 6449.03, criticalFreeboard: 2 },
+                    { id: 'EQ B', maxBbl: 2380, maxHt: 15.5, gpf: 6449.03, criticalFreeboard: 2 },
+                ],
+                solids: [
                     { id: 'Box 12', maxBbl: 133, maxHt: 5.25, gpf: 1064.00 },
                     { id: 'OBM Frac Tank', maxBbl: 502.7, maxHt: 8.9, gpf: 2372.29 },
                     { id: 'Red OBM Tank', maxBbl: 133, maxHt: 5.25, gpf: 1064.00 },
                     { id: 'Black OBM Tank', maxBbl: 204, maxHt: 7, gpf: 1224.00 }
-                ],
+		],
                 process: [
                     { id: 'Reaction Tank 1', maxBbl: 166.7, maxHt: 16, gpf: 437.59 },
                     { id: 'Reaction Tank 2', maxBbl: 166.7, maxHt: 16, gpf: 437.59 },
@@ -533,16 +544,16 @@
             { id: "RWT-31", tare: 35520 }, { id: "RWT-32", tare: 35440 }, { id: "RWT-33", tare: 35200 },
             { id: "RWT-34", tare: 32980 }, { id: "RWT-35", tare: 32300 }, { id: "RWT-36", tare: 36020 },
             { id: "RWT-37", tare: 34520 }, { id: "RWT-38", tare: 31780 }, { id: "RWT-39", tare: 31360 },
-            { id: "RWT-42", tare: 31240 }, { id: "RWT-43", tare: 33480 }
+            { id: "RWT-41", tare: 31140 }, { id: "RWT-42", tare: 31240 }, { id: "RWT-43", tare: 33480 }
         ];
 
         const ROUTES = [
             { id: 'PA', name: 'PA Standard', limit: 73280, code: 'PA' },
-            { id: 'OH3', name: 'OH Tri-axle', limit: 57500, code: 'OH' },
-            { id: 'OH4', name: 'OH Quad-axle', limit: 65500, code: 'OH' }
+            { id: 'OH3', name: 'OH Tri-axle', limit: 57500, code: 'OH3' },
+            { id: 'OH4', name: 'OH Quad-axle', limit: 65500, code: 'OH4' }
         ];
 
-        const ohTriAxleTrucks = ["RWT-1", "RWT-3", "RWT-4", "RWT-10", "RWT-23", "RWT-27", "RWT-28", "RWT-35", "RWT-38", "RWT-39", "RWT-42"];
+        const ohTriAxleTrucks = ["RWT-1", "RWT-3", "RWT-4", "RWT-10", "RWT-23", "RWT-27", "RWT-28", "RWT-35", "RWT-38", "RWT-39", "RWT-41", "RWT-42"];
         const ohQuadAxleTrucks = ["RWT-8", "RWT-9", "RWT-17", "RWT-19", "RWT-22", "RWT-24", "RWT-25", "RWT-29", "RWT-30", "RWT-31", "RWT-32", "RWT-33", "RWT-36", "RWT-37", "RWT-43"];
 
         let activeFluidType = 'fresh';
@@ -590,7 +601,7 @@
 
         function renderTanks(loc) {
             const data = facilityData[loc];
-            const categories = ['headworks', 'process', 'bulkChem', 'effluent', 'impoundment'];
+            const categories = ['headworks', 'solids', 'process', 'bulkChem', 'effluent', 'impoundment'];
             categories.forEach(category => {
                 const section = document.getElementById(`section-${category}`);
                 const list = document.getElementById(`${category}-list`);
